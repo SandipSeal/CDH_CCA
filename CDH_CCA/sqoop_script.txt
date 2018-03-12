@@ -1,0 +1,145 @@
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--warehouse-dir=/user/cloudera/CDH_CCA/retail_db \
+--table order_items \
+--delete-target-dir \
+--autoreset-to-one-mapper
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--target-dir=/user/cloudera/CDH_CCA/retail_db/orders \
+--query "select * from orders WHERE order_id = 70001 AND \$CONDITIONS" \
+--delete-target-dir \
+--split-by order_id \
+--fields-terminated-by ',' \
+--escaped-by '\\'
+
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--warehouse-dir=/user/cloudera/CDH_CCA/retail_db \
+--table order_items \
+--delete-target-dir \
+--autoreset-to-one-mapper \
+--as-sequencefile
+
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--warehouse-dir=/user/cloudera/CDH_CCA/retail_db \
+--table order_items \
+--delete-target-dir \
+--autoreset-to-one-mapper \
+--as-sequencefile \
+--compression-codec=snappy
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--warehouse-dir=/user/cloudera/CDH_CCA/retail_db \
+--table order_items \
+--delete-target-dir \
+--autoreset-to-one-mapper \
+--boundary-query 'select min(order_item_id), max(order_item_id) from order_items where order_item_order_id > 100'
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--warehouse-dir=/user/cloudera/CDH_CCA/retail_db \
+--table orders \
+--check-column order_date \
+--incremental append \
+--last-value '2013-07-25 00:00:00'
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--table order_items \
+--hive-database cdh_cca \
+--hive-import \
+--hive-overwrite \
+--num-mappers 2
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--warehouse-dir=/user/cloudera/CDH_CCA/retail_db \
+--table order_items \
+--delete-target-dir \
+--autoreset-to-one-mapper \
+--fields-terminated-by \\001
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--table orders \
+--hive-database cdh_cca \
+--hive-import \
+--hive-overwrite \
+--num-mappers 2
+
+create table daily_revenue as
+select a.order_date, sum(b.order_item_subtotal) revenue
+from orders a join order_items b on
+a.order_id = b.order_item_order_id
+group by order_date;
+
+sqoop export \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--export-dir hdfs://quickstart.cloudera:8020/user/hive/warehouse/cdh_cca.db/daily_revenue \
+--table daily_revenue \
+--input-fields-terminated-by \\001
+
+
+sqoop export \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--export-dir hdfs://quickstart.cloudera:8020/user/hive/warehouse/cdh_cca.db/daily_revenue \
+--table daily_revenue \
+--input-fields-terminated-by \\001
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username=retail_dba \
+--password=cloudera \
+--warehouse-dir=/user/cloudera/CDH_CCA/retail_db \
+--table order_sq \
+--delete-target-dir \
+--null-string "NA" \
+--split-by order_id \
+--hive-import \
+--hive-database cdh_cca \
+--hive-overwrite
+
+sqoop export \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--export-dir hdfs://quickstart.cloudera:8020/user/hive/warehouse/cdh_cca.db/order_sq \
+--table order_sq \
+--input-fields-terminated-by \\001 \
+--input-null-string "NULL" \
+--update-key order_id \
+--update-mode allowinsert
+
+
+
+
+
+

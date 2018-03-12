@@ -1,0 +1,57 @@
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--as-avrodatafile \
+--delete-target-dir \
+--target-dir /user/cloudera/problem1/orders \
+--table orders \
+--compression-codec=snappy
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--as-avrodatafile \
+--delete-target-dir \
+--target-dir /user/cloudera/problem1/order-items \
+--table order_items \
+--compression-codec=snappy
+
+orderItems_df = sqlContext.read.format("com.databricks.spark.avro").load("/user/cloudera/problem1/order-items")
+
+order_df = sqlContext.read.format("com.databricks.spark.avro").load("/user/cloudera/problem1/orders")
+
+
+order_df.registerTempTable("orders")
+orderItems_df.registerTempTable("order_items")
+
+sqlContext.sql('select to_date(from_unixtime(order_date/1000)) Order_Date, \
+Order_Status, sum(1) total_orders, cast(sum(order_item_subtotal) as DECIMAL (10,2)) total_amount \
+from orders o join order_items oi \
+on \
+o.order_id = oi.order_item_order_id \
+group by order_date,order_status \
+order by Order_Date desc, Order_Status, total_amount desc, total_orders').show()
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--delete-target-dir \
+--warehouse-dir /user/cloudera/problem1/orders \
+--table orders \
+--compression-codec=snappy
+
+order_df = order.map(lambda x: Row(order_id = x.split(",")[0],order_date = x.split(",")[1],order_status = x.split(",")[3])).toDF()
+
+order_df.select(order_id,order_date).show()
+
+
+order_df.join(orderItems_df, on = order_df.order_id == orderItems_df.order_item_order_id).\
+select(f.to_date(f.from_unixtime(f.col('order_date')/1000)).alias('order_date'),'order_status','order_item_subtotal').\
+groupBy('order_date','order_status').\
+agg(f.count("*").alias('total_orders'), f.round(f.sum('order_item_subtotal'),2).alias('total_amount')).\
+orderBy(f.col('order_date').desc(), f.col('order_status'), f.col('total_amount').desc(), f.col('total_orders')).show()
+
+
