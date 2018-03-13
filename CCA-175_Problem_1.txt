@@ -54,4 +54,24 @@ groupBy('order_date','order_status').\
 agg(f.count("*").alias('total_orders'), f.round(f.sum('order_item_subtotal'),2).alias('total_amount')).\
 orderBy(f.col('order_date').desc(), f.col('order_status'), f.col('total_amount').desc(), f.col('total_orders')).show()
 
+orderJoinRDD = orderJoin.rdd.\
+map(lambda x: (x['order_date'], x['order_status'],x['order_item_subtotal'])).\
+map(lambda x: ((x[0],x[1]),round(x[2], 2))).\
+combineByKey(lambda v: (v, 1),\
+				lambda x,v: (x[0] + v, x[1] + 1),\
+				lambda x,y: (x[0] + y[0], x[1] + y[1])).\
+map(lambda x: ((-x[0][0],x[0][1],-x[1][0],x[1][1]), \
+(x[0][0],x[0][1],round(x[1][0],2),x[1][1]))).\
+sortByKey().\
+map(lambda x: x[1]).toDF(schema=['order_date','order_status','total_amount','total_orders'])
 
+
+for i in orderJoinRDD.take(10): print(i)
+
+
+orderJoinRDD.reduceByKey(lambda x,y: x+y).\
+map(lambda x: (x[0].split(",")[0],x[0].split(",")[1]))
+toDF()
+
+orderJoin.rdd.map(list).\
+map(lambda x: x[1]).take(5)
