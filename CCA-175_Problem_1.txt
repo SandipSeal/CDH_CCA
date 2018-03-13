@@ -1,3 +1,7 @@
+//Solution to Arun's Blog - Problem-1
+
+Step-1: Import orders table
+
 sqoop import \
 --connect jdbc:mysql://quickstart:3306/retail_db \
 --username retail_dba \
@@ -7,6 +11,8 @@ sqoop import \
 --target-dir /user/cloudera/problem1/orders \
 --table orders \
 --compression-codec=snappy
+
+Step-2: Import order_items table
 
 sqoop import \
 --connect jdbc:mysql://quickstart:3306/retail_db \
@@ -18,43 +24,49 @@ sqoop import \
 --table order_items \
 --compression-codec=snappy
 
+Step-3: Import data into Spark data-frames
+
 orderItems_df = sqlContext.read.format("com.databricks.spark.avro").load("/user/cloudera/problem1/order-items")
 
 order_df = sqlContext.read.format("com.databricks.spark.avro").load("/user/cloudera/problem1/orders")
 
+orderJoinOrderItem_df = order_df.join(orderItems_df, on = order_df.\
+order_id == orderItems_df.order_item_order_id)
+
+Step 4: Creating intermediate results
+
+
+4.a: Generating output using DataFrame API
+
+import pyspark.sql.functions as f
+
+orderResultDF = orderJoinOrderItem_df.\
+select(f.to_date(f.from_unixtime(f.col('order_date')/1000)).alias('order_date'),'order_status','order_item_subtotal').\
+groupBy('order_date','order_status').\
+agg(f.count("*").alias('total_orders'), f.round(f.sum('order_item_subtotal'),2).\
+alias('total_amount')).\
+orderBy(f.col('order_date').desc(), f.col('order_status'), f.col('total_amount').desc(), f.col('total_orders')).select('order_date', 'order_status', 'total_orders', 'total_amount')
+
+
+4.b: Generating output using Spark-SQL
+
+//Creation of temp table in Hive
 
 order_df.registerTempTable("orders")
 orderItems_df.registerTempTable("order_items")
 
-sqlContext.sql('select to_date(from_unixtime(order_date/1000)) Order_Date, \
+orderResultSQL = sqlContext.sql('select to_date(from_unixtime(order_date/1000)) Order_Date, \
 Order_Status, sum(1) total_orders, cast(sum(order_item_subtotal) as DECIMAL (10,2)) total_amount \
 from orders o join order_items oi \
 on \
 o.order_id = oi.order_item_order_id \
 group by order_date,order_status \
-order by Order_Date desc, Order_Status, total_amount desc, total_orders').show()
-
-sqoop import \
---connect jdbc:mysql://quickstart:3306/retail_db \
---username retail_dba \
---password cloudera \
---delete-target-dir \
---warehouse-dir /user/cloudera/problem1/orders \
---table orders \
---compression-codec=snappy
-
-order_df = order.map(lambda x: Row(order_id = x.split(",")[0],order_date = x.split(",")[1],order_status = x.split(",")[3])).toDF()
-
-order_df.select(order_id,order_date).show()
+order by Order_Date desc, Order_Status, total_amount desc, total_orders')
 
 
-order_df.join(orderItems_df, on = order_df.order_id == orderItems_df.order_item_order_id).\
-select(f.to_date(f.from_unixtime(f.col('order_date')/1000)).alias('order_date'),'order_status','order_item_subtotal').\
-groupBy('order_date','order_status').\
-agg(f.count("*").alias('total_orders'), f.round(f.sum('order_item_subtotal'),2).alias('total_amount')).\
-orderBy(f.col('order_date').desc(), f.col('order_status'), f.col('total_amount').desc(), f.col('total_orders')).show()
+4.c: Generating output using RDD operation (combineByKey)
 
-orderJoinRDD = orderJoin.rdd.\
+orderResultRDD = orderJoinOrderItem_df.rdd.\
 map(lambda x: (x['order_date'], x['order_status'],x['order_item_subtotal'])).\
 map(lambda x: ((x[0],x[1]),round(x[2], 2))).\
 combineByKey(lambda v: (v, 1),\
@@ -66,12 +78,63 @@ sortByKey().\
 map(lambda x: x[1]).toDF(schema=['order_date','order_status','total_amount','total_orders'])
 
 
-for i in orderJoinRDD.take(10): print(i)
+for i in orderResultRDD.take(10): print(i)
+
+Step 5: Storing the data in HDFS in parquet format (gzip)
+
+orderResultDF.write.mode("overwrite").format("parquet"). \
+option("compression","gzip"). \
+save("/user/cloudera/problem1/result4a-gzip")
 
 
-orderJoinRDD.reduceByKey(lambda x,y: x+y).\
-map(lambda x: (x[0].split(",")[0],x[0].split(",")[1]))
-toDF()
+orderResultSQL.write.mode("overwrite").format("parquet"). \
+option("compression","gzip"). \
+save("/user/cloudera/problem1/result4b-gzip")
 
-orderJoin.rdd.map(list).\
-map(lambda x: x[1]).take(5)
+
+orderResultRDD.write.mode("overwrite").format("parquet"). \
+option("compression","gzip"). \
+save("/user/cloudera/problem1/result4c-gzip")
+
+
+Step 6: Storing the data in HDFS in parquet format (snappy)
+
+orderResultDF.write.mode("overwrite").format("parquet"). \
+option("compression","snappy"). \
+save("/user/cloudera/problem1/result4a-snappy")
+
+
+orderResultSQL.write.mode("overwrite").format("parquet"). \
+option("compression","snappy"). \
+save("/user/cloudera/problem1/result4b-snappy")
+
+
+orderResultRDD.write.mode("overwrite").format("parquet"). \
+option("compression","snappy"). \
+save("/user/cloudera/problem1/result4c-snappy")
+
+
+Step 7: Storing the data in HDFS in csv format
+
+orderResultDF.\
+map(lambda x: str(x[0])+","+x[1]+","+str(x[2])+","+str(x[3])).\
+saveAsTextFile("/user/cloudera/problem1/result4a-csv")
+
+
+orderResultSQL.\
+map(lambda x: str(x[0])+","+x[1]+","+str(x[2])+","+str(x[3])).\
+saveAsTextFile("/user/cloudera/problem1/result4b-csv")
+
+
+orderResultRDD.\
+map(lambda x: str(x[0])+","+x[1]+","+str(x[2])+","+str(x[3])).\
+saveAsTextFile("/user/cloudera/problem1/result4c-csv")
+
+
+
+
+
+
+
+
+
