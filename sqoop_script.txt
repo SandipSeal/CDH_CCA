@@ -138,6 +138,20 @@ sqoop export \
 --update-key order_id \
 --update-mode allowinsert
 
+//
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--delete-target-dir \
+--warehouse-dir /user/cloudera/problem1/orders \
+--table orders \
+--compression-codec=snappy
+
+order_df = order.map(lambda x: Row(order_id = x.split(",")[0],order_date = x.split(",")[1],order_status = x.split(",")[3])).toDF()
+
+order_df.select(order_id,order_date).show()
+//
 
 
 

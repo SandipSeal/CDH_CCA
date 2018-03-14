@@ -1,0 +1,96 @@
+//Solution to Arun's Blog - Problem-2
+
+Step-1: Import product table
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--as-textfile \
+--delete-target-dir \
+--target-dir /user/cloudera/products \
+--table products \
+--fields-terminated-by '|' \
+--escaped-by '\\'
+
+Step-2: Moving data to HDFS folder
+
+hadoop fs -mv /user/cloudera/products/* /user/cloudera/problem2/products/
+
+Step-3: Change directory permission
+
+hadoop fs -chmod 765 /user/cloudera/problem2/products
+
+Step-4: Data Manipulation:
+
+products = sc.textFile("/user/cloudera/problem2/products")
+
+
+product_df = products.map(lambda x: (x.split("|")[0],x.split("|")[1],\
+x.split("|")[2],x.split("|")[3],x.split("|")[4],x.split("|")[5])).\
+map(lambda x: Row(product_id=x[0], product_category_id=x[1], product_name=x[2], product_desc=x[3],\
+product_price=float(x[4]), product_image=x[5])).toDF()
+
+product_df = products.map(lambda x: (int(x.split("|")[0]),int(x.split("|")[1]),\
+x.split("|")[2],x.split("|")[3],float(x.split("|")[4]),x.split("|")[5])).\
+toDF(schema = ['product_id','product_category_id','product_name','product_desc','product_price','product_image'])
+
+
+4.a Using DataFrame API
+
+import pyspark.sql.functions as f
+
+productDF = product_df.where("product_price < 100").\
+groupBy('product_category_id').\
+agg(f.max(f.col('product_price')).alias('max_price'),\
+f.count(f.col('product_id')).alias('product_cnt'),\
+f.avg(f.col('product_price')).alias('avg_price'),\
+f.min(f.col('product_price')).alias('min_price')).\
+orderBy(f.col('product_category_id').desc())
+
+4.b Using SQL
+
+product_df.registerTempTable("product_table")
+
+productSQL = sqlContext.sql('select product_category_id, \
+max(product_price) max_price, count(product_id) product_cnt, \
+avg(product_price) avg_price, min(product_price) min_price \
+from product_table \
+where product_price < 100 \
+group by product_category_id \
+order by product_category_id desc')
+
+4.c Using RDD
+
+productRDD = product_df.map(lambda x: (x['product_category_id'],x['product_price'])).\
+map(lambda x: (x[0],x[1])).\
+filter(lambda x: x[1] < 100).\
+aggregateByKey((0.0,0,0.0,9999999.99), \
+lambda x,y :(x[0] + y, x[1] + 1, calcMax(x[2],y),calcMin(x[3],y)),\
+lambda x,y :(x[0] + y[0], x[1] + y[1], calcMax(x[2],y[2]), calcMin(x[3],y[3]))).\
+map(lambda x : (-x[0],(x[0],x[1][2],x[1][1],x[1][0]/x[1][1],x[1][3]))).sortByKey().\
+map(lambda x: x[1]).\
+toDF(schema = ['product_category_id', 'max_price', 'product_cnt', 'avg_price','min_price'])
+
+
+def calcMax (x,y):
+	if (x > y):
+		return x
+	else:
+		return y
+
+def calcMin (x,y):
+	if (x < y):
+		return x
+	else:
+		return y
+
+Step - 5: Saving data in HDFS
+
+productDF.write.mode("overwrite").option("compression", "snappy").format("com.databricks.spark.avro").save("/user/cloudera/problem2/products/result-df")
+
+productSQL.write.mode("overwrite").option("compression", "snappy").format("com.databricks.spark.avro").save("/user/cloudera/problem2/products/result-sql")
+
+productRDD.write.mode("overwrite").option("compression", "snappy").format("com.databricks.spark.avro").save("/user/cloudera/problem2/products/result-rdd")
+
+
