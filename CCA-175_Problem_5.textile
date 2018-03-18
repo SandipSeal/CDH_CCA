@@ -1,0 +1,121 @@
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--table products_replica \
+--as-textfile \
+--target-dir /user/cloudera/problem5/products-text \
+--fields-terminated-by '|' \
+--lines-terminated-by '\n' \
+--null-string "NOT-AVAILABLE" \
+--null-non-string -1 \
+--where 'product_id >= 1 and product_id < 100' \
+-m 3
+
+
+
+
+
+sqoop job --create incrementaljob \
+-- import \
+--connect "jdbc:mysql://quickstart:3306/retail_db" \
+--username "retail_dba" \
+--password "cloudera" \
+--table products_replica \
+--as-textfile \
+--target-dir /user/cloudera/problem5/products-incremental \
+--fields-terminated-by '|' \
+--lines-terminated-by '\n' \
+--null-string "NOT-AVAILABLE" \
+--null-non-string -1 \
+--incremental append \
+--check-column product_id \
+--last-value 0
+
+
+sqoop job --exec incrementaljob
+
+insert into products_replica values (1500,20,'My Product','My product', 124.88,'xxxx','C','Good')
+insert into products_replica values (1501,20,'My Product','My product', 124.88,'xxxx','C','Good')
+
+
+sqoop job --create incrementaljob_1 \
+-- import \
+--connect "jdbc:mysql://quickstart:3306/retail_db" \
+--username "retail_dba" \
+--password "cloudera" \
+--table products_replica \
+--as-textfile \
+--null-string "NOT-AVAILABLE" \
+--null-non-string -1 \
+--incremental append \
+--check-column product_id \
+--last-value 0 \
+--hive-import \
+--hive-table cdh_cca.products_hive
+
+insert into products_replica values (1504,20,'My Product','My product', 124.88,'xxxx','C','Good');
+insert into products_replica values (1505,20,'My Product','My product', 124.88,'xxxx','C','Good');
+
+
+create table products_external  (
+product_id int(11) primary Key, 
+product_grade int(11), 
+product_category_id int(11), 
+product_name varchar(100), 
+product_description varchar(100), 
+product_price float, 
+product_impage varchar(500), 
+product_sentiment varchar(100)
+);
+
+
+sqoop job --create incrementalexport \
+-- export \
+--connect "jdbc:mysql://quickstart:3306/retail_db" \
+--username "retail_dba" \
+--password "cloudera" \
+--table products_external \
+--input-fields-terminated-by '\001' \
+--export-dir hdfs://quickstart.cloudera:8020/user/hive/warehouse/cdh_cca.db/products_hive/ \
+--input-null-string "NOT-AVAILABLE" \
+--input-null-non-string -1 \
+--update-key product_id \
+--update-mode allowinsert \
+--columns "product_id,product_category_id,product_name,product_description,product_price,product_impage,product_grade,product_sentiment"
+
+
+insert into products_hive values (1506,20,'My Product','My product', 124.88,'xxxx','C','Good');
+insert into products_hive values (1507,20,'My Product','My product', 124.88,'xxxx','C','Good');
+
+sqoop export \
+--connect "jdbc:mysql://quickstart:3306/retail_db" \
+--username "retail_dba" \
+--password "cloudera" \
+--table products_external \
+--input-fields-terminated-by '\001' \
+--export-dir hdfs://quickstart.cloudera:8020/user/hive/warehouse/cdh_cca.db/products_hive/ \
+--input-null-string "NOT-AVAILABLE" \
+--input-null-non-string -1 \
+--update-key product_id \
+--update-mode allowinsert \
+--columns "product_id,product_category_id,product_name,product_description,product_price,product_impage,product_grade,product_sentiment"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

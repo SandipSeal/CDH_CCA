@@ -1,0 +1,120 @@
+Step - 1: import orders table into HDFS as tsv
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--delete-target-dir \
+--target-dir /user/cloudera/problem5/text \
+--table orders \
+--fields-terminated-by \\t
+
+Step - 2: import orders table into HDFS as avro-datafile
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--delete-target-dir \
+--target-dir /user/cloudera/problem5/avro \
+--table orders \
+--as-avrodatafile
+
+Step - 3: import orders table into HDFS as parquet-datafile
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--delete-target-dir \
+--target-dir /user/cloudera/problem5/parquet \
+--table orders \
+--as-parquetfile
+
+Step 4
+
+//Read the avro-data file in DataFrame
+
+order_df = sqlContext.read.format("com.databricks.spark.avro").load("/user/cloudera/problem5/avro")
+
+// Write a Parquet with compression
+
+order_df.write.format("parquet").option("compression","snappy").save("/user/cloudera/problem5/parquet-snappy-compress")
+
+// Write as SequenceFile
+
+order_df.\
+map (lambda x: (x[0],str(x[0])+"\t"+str(x[1])+"\t"+str(x[2])+"\t"+str(x[3]))).\
+saveAsSequenceFile(path="/user/cloudera/problem5/sequence")
+
+// Write as TextFile with Gzip compression
+
+order_df.\
+map (lambda x: str(x[0])+"\t"+str(x[1])+"\t"+str(x[2])+"\t"+str(x[3])).\
+saveAsTextFile(path="/user/cloudera/problem5/text-gzip-compress", \
+compressionCodecClass="org.apache.hadoop.io.compress.GzipCodec")
+
+// Write as TextFile with Snappy compression
+
+order_df.\
+map (lambda x: str(x[0])+"\t"+str(x[1])+"\t"+str(x[2])+"\t"+str(x[3])).\
+saveAsTextFile(path="/user/cloudera/problem5/text-snappy-compress", \
+compressionCodecClass="org.apache.hadoop.io.compress.SnappyCodec")
+
+Step - 5
+
+
+// Read the compressed parquet file:
+
+order_r_df = sqlContext.read.format("parquet").load("/user/cloudera/problem5/parquet-snappy-compress")
+
+// Write as un-compressed parquet file:
+order_r_df.write.format("parquet").save("/user/cloudera/problem5/parquet-no-compress")
+
+// Write as snappy-compressed avro file:
+order_r_df.write.format("com.databricks.spark.avro").option("compression","snappy").save("/user/cloudera/problem5/avro-snappy")
+
+
+Step - 6
+
+// Read snappy-compressed avro data file:
+
+order_rx_df = sqlContext.read.format("com.databricks.spark.avro").\
+load("/user/cloudera/problem5/avro-snappy")
+
+// Write as json
+
+order_rx_df.write.format("json").save("/user/cloudera/problem5/json-no-compress")
+
+// Write as json with compression
+
+order_rx_df.write.format("json").option("compression","gzip").save("/user/cloudera/problem5/json-gzip")
+
+Step - 7
+
+// Read the cpmpressed json: 
+
+order_rxj_df = sqlContext.read.format("json").\
+load("/user/cloudera/problem5/json-gzip")
+
+// Save the data as csv:
+
+order_rxj_df.\
+map (lambda x: str(x[0])+","+str(x[1])+","+str(x[2])+","+str(x[3])).\
+saveAsTextFile(path="/user/cloudera/problem5/csv-gzip", \
+compressionCodecClass="org.apache.hadoop.io.compress.GzipCodec")
+
+Step - 8
+
+// Read the sequence file
+
+seqRDD = sc.sequenceFile("/user/cloudera/problem5/sequence")
+
+// Write the data in ORC format
+
+seqRDD_DF = seqRDD.\
+map(lambda x: x[1].split("\t")).toDF(schema = ['order_id','order_date','order_customer_id','order_status'])
+
+seqRDD_DF.write.format("orc").save("/user/cloudera/problem5/orc")
+
+

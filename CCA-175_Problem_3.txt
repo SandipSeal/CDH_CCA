@@ -1,0 +1,107 @@
+sqoop import-all-tables \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--warehouse-dir /user/cloudera/retail_stage.db \
+--as-avrodatafile \
+--compress \
+--compression-codec=snappy \
+--autoreset-to-one-mapper
+
+
+sqoop eval \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--query "desc orders"
+
+
+hadoop fs -get /user/cloudera/retail_stage.db/orders/part-m-00000.avro
+avro-tools getschema part-m-00000.avro > orders.avsc
+hadoop fs -mkdir /user/cloudera/order_schema
+hadoop fs -ls /user/cloudera/order_schema
+hadoop fs -copyFromLocal orders.avsc /user/cloudera/order_schema
+
+
+create external table orders_sqoop 
+STORED AS AVRO
+LOCATION '/user/cloudera/retail_stage.db/orders'
+TBLPROPERTIES ("avro.schema.url"="/user/cloudera/order_schema/orders.avsc");
+
+
+create table orders_sqoop_mgmt
+STORED AS AVRO
+LOCATION '/user/cloudera/retail_stage.db/orders'
+TBLPROPERTIES ("avro.schema.url"="/user/cloudera/order_schema/orders.avsc");
+
+LOAD DATA INPATH '/user/cloudera/retail_stage.db/orders' INTO TABLE orders_sqoop;
+
+select os.* from orders_sqoop os where os.order_date in (
+select b.order_date from
+(select a.order_date, row_number() over (order by order_cnt desc) row_num
+from
+(select order_date, count(1) order_cnt from orders_sqoop
+group by order_date) a)b
+where row_num = 1
+)
+
+
+select * from orders_sqoop as X where X.order_date in 
+(select a.order_date from 
+(select Y.order_date, count(1) as total_orders from orders_sqoop as Y 
+group by Y.order_date order by total_orders desc, Y.order_date desc limit 1) a);
+
+
+alter table orders_sqoop_mgmt add columns (new_col string);
+
+
+create table orders_avro(
+order_id           int,
+order_date         string,   
+order_customer_id  int,    
+order_status       string   
+)
+PARTITIONED BY (year_order_month string)
+STORED AS AVRO;
+
+insert overwrite table orders_avro
+PARTITION(year_order_month)
+select order_id,order_date,order_customer_id,order_status,concat(year(from_unixtime(int(order_date/1000))),'-',month(from_unixtime(int(order_date/1000)))) year_month from orders_sqoop;
+
+
+select * from orders_avro as X where X.order_date in 
+(select a.order_date from 
+(select Y.order_date, count(1) as total_orders from orders_avro as Y 
+group by Y.order_date order by total_orders desc, Y.order_date desc limit 1) a);
+
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--warehouse-dir /user/cloudera/retail_stage.db/orders/parquet \
+--as-parquetfile \
+--compress \
+--compression-codec=snappy \
+--autoreset-to-one-mapper \
+--table orders
+
+
+create table orders_parquet(
+order_id           int,   
+order_date         bigint,
+order_customer_id  int,    
+order_status       string   
+)
+STORED AS PARQUET
+
+LOAD DATA INPATH '/user/cloudera/retail_stage.db/orders/parquet/orders' INTO TABLE orders_parquet;
+
+
+
+
+
+
+
+
+
