@@ -1,0 +1,67 @@
+sqoop import-all-tables \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--autoreset-to-one-mapper \
+--null-string 'NA' \
+--null-non-string -9999 \
+--hive-import \
+--hive-database problem6
+
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--autoreset-to-one-mapper \
+--null-string 'NA' \
+--null-non-string -9999 \
+--hive-import \
+--hive-database problem6 \
+--table products \
+--target-dir "/user/hive/warehouse/problem6.db/products"
+
+
+products = sc.textFile("/user/hive/warehouse/problem6.db/products")
+productDF = products.map(lambda x: x.split("\001")).\
+toDF(schema = ['product_id','product_category_id','product_name','product_desc','product_price','product_image'])
+
+
+categories = sc.textFile("/user/hive/warehouse/problem6.db/categories")
+categoryDF = categories.map(lambda x: x.split("\001")).\
+toDF(schema = ['category_id','category_dept_id','category_name'])
+
+
+departments = sc.textFile("/user/hive/warehouse/problem6.db/departments")
+departmentDF = departments.map(lambda x: x.split("\001")).\
+toDF(schema = ['department_id','department_name'])
+
+
+
+productDF.registerTempTable("product")
+categoryDF.registerTempTable("category")
+departmentDF.registerTempTable("department")
+
+
+
+sqlContext.sql('select * from ( \
+select department_name,product_name, \
+rank() over (partition by department_name order by float(product_price) desc) prd_rank from \
+product a join category b \
+on a.product_category_id = b.category_id \
+join department c \
+on b. category_dept_id = c.department_id) inner \
+order by department_name, prd_rank desc').show()
+
+
+
+
+
+
+
+
+
+
+
+
+
