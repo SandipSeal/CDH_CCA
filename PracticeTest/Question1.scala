@@ -719,6 +719,11 @@ Please replace XXX, YYY, ZZZ
 ./bin/spark-submit -class com.hadoopexam.MyTask --master yarn-cluster--num-executors 3
 --driver-memory 512m XXX YYY lib/hadoopexam.jarZZZ
 
+Ans:
+
+
+./bin/spark-submit -class com.hadoopexam.MyTask --master yarn-cluster--num-executors 3
+--driver-memory 512m --executor-memory 512m --executor-cores 1 YYY lib/hadoopexam.jar v1 v2 v3
 
 
 Question 19
