@@ -1,0 +1,51 @@
+create external table orders_avro_4(
+order_id           int,
+order_date         bigint,   
+order_customer_id  int,    
+order_status       string   
+)
+STORED AS AVRO
+TBLPROPERTIES("avro.output.codec"="snappy");
+
+insert overwrite table orders_avro_3 select * from orders_parquet_3;
+
+
+create external table orders_avro_3(
+order_id           int,
+order_date         bigint,   
+order_customer_id  int,    
+order_status       string   
+)
+STORED AS AVRO
+
+
+
+
+LOAD DATA INPATH '/user/cloudera/problem5/parquet/' INTO TABLE orders_parquet_1;
+
+create external table orders_parquet_3(
+order_id           int,
+order_date         bigint,   
+order_customer_id  int,    
+order_status       string   
+)
+STORED AS PARQUET
+LOCATION '/user/cloudera/problem5/parquet-snappy-compress';
+
+
+
+create table order_parquet_test
+like orders_avro
+STORED AS parquet
+
+insert overwrite table order_parquet_test
+PARTITION(year_order_month)
+select * from orders_avro;
+
+create table order_parquet_test_1
+like orders_sqoop
+STORED AS parquet
+
+
+insert overwrite table order_parquet_test_1
+select * from orders_sqoop;
