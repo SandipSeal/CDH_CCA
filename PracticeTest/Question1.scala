@@ -671,8 +671,8 @@ Ans:
 
 # Name the components on this agent sps
 sps.sources = sp
-sps.sinks = hd1, hd2
-sps.channels = mem1, mem2
+sps.sinks = hd1 hd2
+sps.channels = mem1 mem2
 
 # Describe/configure the source
 sps.sources.sp.type = spooldir
@@ -705,7 +705,7 @@ sps.channels.mem2.type = file
 # sps.channels.mem2.transactionCapacity = 100
 
 # Bind the source and sink to the channel
-sps.sources.sp.channels = mem1, mem2
+sps.sources.sp.channels = mem1 mem2
 sps.sinks.hd1.channel = mem1
 sps.sinks.hd2.channel = mem2
 
