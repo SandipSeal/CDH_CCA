@@ -903,6 +903,50 @@ agent1.sources.source1.channels = channel1
 agent1.sinks.sink1.channel = channel1
 
 
+
+Question 26
+Problem Scenario 16 : You have been given following mysql database details as well as
+other info.
+user=retail_dba
+password=cloudera
+database=retail_db
+jdbc URL = jdbc:mysql://quickstart:3306/retail_db
+Please accomplish below assignment.
+1. Create a table in hive as below.
+create table departments_hive(department_id int, department_name string);
+2. Now import data from mysql table departments to this hive table. Please make sure that
+data should be visible using below hive command, select * from departments_hive
+
+
+Ans:
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--table departments \
+--hive-import \
+--hive-table departments_hive \
+--create-hive-table
+
+
+
+Question 27
+Problem Scenario 92 : You have been given a spark scala application, which is bundled in
+jar named hadoopexam.jar.
+Your application class name is com.hadoopexam.MyTask
+You want that while submitting your application should launch a driver on one of the cluster
+node.
+Please complete the following command to submit the application.
+spark-submit XXX -master yarn \
+YYY SSPARK HOME/lib/hadoopexam.jar 10
+
+Ans:
+
+spark-submit --deploy-mode cluster --master yarn \
+--class com.hadoopexam.MyTask SSPARK HOME/lib/hadoopexam.jar 10
+
+
 Question 28
 Problem Scenario 43 : You have been given following code snippet.
 val grouped = sc.parallelize(Seq(((1,twoM), List((3,4), (5,6)))))
@@ -916,9 +960,7 @@ Array((1,two,3,4),(1,two,5,6))
 val grouped = sc.parallelize(Seq(((1,"two"), List((3,4), (5,6)))))
 
 
-val flattened = grouped.flatMap ({case (a, (c,d)) => ((a,c),(a,d))})
-groupValues.map { value => B }
-
+val flattened = grouped.flatMap ({case (key,groupValues) => groupValues.map{value => (key._1,key._2,value._1,value._2)}})
 
 
 
@@ -940,6 +982,34 @@ Array[(lnt, (String, Option[String]}}] = Array((6,(salmon,Some(salmon))),
 Ans:
 
 b.leftOuterJoin(d).collect()
+
+
+Question 30
+Problem Scenario 94 : You have to run your Spark application on yarn with each executor
+20GB and number of executors should be 50. Please replace XXX, YYY, ZZZ
+export HADOOP_CONF_DIR=XXX
+./bin/spark-submit \
+-class com.hadoopexam.MyTask \
+xxx\
+-deploy-mode cluster \ # can be client for client mode
+YYY\
+222 \
+/path/to/hadoopexam.jar \
+1000
+
+
+Ans:
+
+export HADOOP_CONF_DIR=XXX
+./bin/spark-submit \
+-class com.hadoopexam.MyTask \
+--master yarn\
+-deploy-mode cluster \ # can be client for client mode
+--num-executors 50\
+--executor-memory 20G \
+/path/to/hadoopexam.jar \
+1000
+
 
 
 Question 31
