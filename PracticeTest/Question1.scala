@@ -1489,6 +1489,16 @@ val initialSet = scala.collection.mutable.HashSet.empty[String]
 
 val uniqueByKey = kv.aggregateByKey(initialSet)((x: mutable.HashSet[String],y: String) => {x+=y}, (x: mutable.HashSet[String],y: mutable.HashSet[String]) => {x++=y})
 
+Question 45
+Problem Scenario 93 : You have to run your Spark application with locally 8 thread or
+locally on 8 cores. Replace XXX with correct values.
+spark-submit --class com.hadoopexam.MyTask XXX \ -deploy-mode cluster
+SSPARK_HOME/lib/hadoopexam.jar 10
+
+
+Ans:
+
+XXX = --master local[8]
 
 
 Question 46
@@ -1966,6 +1976,69 @@ JOIN Emp_Salary c \
 ON a.Id = c.Id').show()
 
 
+Question 61
+Problem Scenario 24 : You have been given below comma separated employee
+information.
+Data Set:
+name,salary,sex,age
+alok,100000,male,29
+jatin,105000,male,32
+yogesh,134000,male,39
+ragini,112000,female,35
+jyotsana,129000,female,39
+valmiki,123000,male,29
+Requirements:
+Use the netcat service on port 44444, and nc above data line by line. Please do the
+following activities.
+1. Create a flume conf file using fastest channel, which write data in hive warehouse
+directory, in a table called flumemaleemployee (Create hive table as well tor given data).
+2. While importing, make sure only male employee data is stored.
+
+
+create table flumemployee1 (
+name string,
+salary Int,
+sex String,
+age Int
+)
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY ',';
+
+
+agent1.sources = source1
+agent1.sinks = sink1
+agent1.channels = channel1
+
+agent1.sources.source1.type = netcat
+agent1.sources.source1.bind = localhost
+agent1.sources.source1.port = 44444
+agent1.sources.source1.interceptors = i1
+agent1.sources.source1.interceptors.i1.type = regex_extractor
+agent1.sources.source1.interceptors.i1.regex = (\\w+),(\\w+),(\\w+),(\\w+)
+agent1.sources.source1.interceptors.i1.serializers = s1 s2 s3 s4
+agent1.sources.source1.interceptors.i1.serializers.s3.name = sex
+agent1.sources.source1.interceptors.i1.serializers.s1.name = h1
+agent1.sources.source1.interceptors.i1.serializers.s2.name = h2
+agent1.sources.source1.interceptors.i1.serializers.s4.name = h4
+agent1.sources.source1.selector.type = multiplexing
+agent1.sources.source1.selector.header = sex
+agent1.sources.source1.selector.mapping.male = channel1
+
+agent1.sinks.sink1.type = hdfs
+agent1.sinks.sink1.hdfs.path = hdfs://quickstart.cloudera:8020/user/hive/warehouse/cdh_cca.db/flumemployee1
+agent1.sinks.sink1.hdfs.fileType = DataStream
+
+
+agent1.channels.channel1.type = memory
+agent1.channels.channel1.capacity = 1000
+agent1.channels.channel1.transactionCapacity = 100
+
+
+agent1.sources.source1.channels = channel1
+agent1.sinks.sink1.channel = channel1
+
+
+
 Question 62
 Problem Scenario 27 : You need to implement near real time solutions for collecting
 information when submitted in file with below information.
@@ -2081,6 +2154,16 @@ val userRdd = user.filter ((x) => x.split(",")(0) != "id").filter((x) => x.split
 userRdd.map((x) => (Map("id" -> x.split(",")(0), "topic" -> x.split(",")(1), "hits" -> x.split(",")(2)))).collect()
 
 
+Correct Solution:
+
+val user = sc.textFile("/Users/Sandip/Downloads/user/user.csv")
+val userRdd = user.map(x => x.split(","))
+val header = userRdd.first()
+val userRdd_out = userRdd.filter(x => x(0) != header(0))
+userRdd_out.map(x => header.zip(x).toMap).filter(x => x("id") != "myself").collect
+
+
+
 Question 66
 Problem Scenario 2 :
 There is a parent organization called "ABC Group Inc", which has two child companies
@@ -2117,7 +2200,126 @@ Ans:
 
 hadoop fs -getmerge -nl /user/cloudera/CDH_CCA/employee MergedEmployee.txt
 
+Question 67
+Problem Scenario 9 : You have been given following mysql database details as well as
+other info.
+user=retail_dba
+password=cloudera
+database=retail_db
+jdbc URL = jdbc:mysql://quickstart:3306/retail_db
+Please accomplish following.
+1. Import departments table in a directory.
+2. Again import departments table same directory (However, directory already exist hence
+it should not overrride and append the results)
+3. Also make sure your results fields are terminated by '|' and lines terminated by '\n\
 
+
+Ans:
+
+sqoop import \
+--connect jdbc:mysql://quickstart:3306/retail_db \
+--username retail_dba \
+--password cloudera \
+--target-dir /user/cloudera/CDH_CCA/dept_test \
+--table departments \
+--fields-terminated-by '|' \
+--append
+
+
+
+Question 70
+Problem Scenario 56 : You have been given below code snippet.
+val a = sc.parallelize(l to 100. 3)
+operation1
+Write a correct code snippet for operationl which will produce desired output, shown below.
+Array [Array [I nt]] = Array(Array(1, 2, 3,4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19, 20,
+21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33),
+Array(34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
+56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66),
+Array(67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88,
+89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100))
+
+
+Ans:
+
+a.glom.collect()
+
+
+Question 71
+Problem Scenario 31 : You have given following two files
+1. Content.txt: Contain a huge text file containing space separated words.
+2. Remove.txt: Ignore/filter all the words given in this file (Comma Separated).
+Write a Spark program which reads the Content.txt file and load as an RDD, remove all the
+words from a broadcast variables (which is loaded as an RDD of words from Remove.txt).
+And count the occurrence of the each word and save it as a text file in HDFS.
+Content.txt
+Hello this is ABCTech.com
+This is TechABY.com
+Apache Spark Training
+This is Spark Learning Session
+Spark is faster than MapReduce
+Remove.txt
+Hello, is, this, the
+
+Ans:
+
+content = sc.textFile("/user/cloudera/CDH_CCA/content.txt")
+removeList = sc.textFile("/user/cloudera/CDH_CCA/remove.txt"). \
+flatMap(lambda x: x.split(",")). \
+map(lambda x: x.strip())
+
+removeBroad = sc.broadcast(removeList.collect())
+
+contentFilter = content.flatMap(lambda x: x.split(" ")). \
+filter(lambda x: x not in removeBroad.value)
+
+
+Question 73
+Problem Scenario 71 :
+Write down a Spark script using Python,
+In which it read a file "Content.txt" (On hdfs) with following content.
+After that split each row as (key, value), where key is first word in line and entire line as
+value.
+Filter out the empty lines.
+And save this key value in "problem86" as Sequence file(On hdfs)
+Part 2 : Save as sequence file , where key as null and entire line as value. Read back the
+stored sequence files.
+Content.txt
+Hello this is ABCTECH.com
+This is XYZTECH.com
+Apache Spark Training
+This is Spark Learning Session
+Spark is faster than MapReduce
+
+
+Ans:
+
+content = sc.textFile("/user/cloudera/CDH_CCA/content.txt")
+contentRdd = content.map(lambda x: (x.split(" ")[0],x)). \
+filter(lambda x: len(x[1]) > 0)
+
+contentRdd.saveAsSequenceFile("/user/cloudera/CDH_CCA/p86")
+
+contentRdd.map(lambda x: (None,x[1])).saveAsSequenceFile("/user/cloudera/CDH_CCA/p86_1")
+
+
+Question 77
+Problem Scenario 51 : You have been given below code snippet.
+val a = sc.parallelize(List(1, 2,1, 3), 1)
+val b = a.map((_, "b"))
+val c = a.map((_, "c"))
+Operation_xyz
+Write a correct code snippet for Operationxyz which will produce below output.
+Output:
+Array[(lnt, (lterable[String], lterable[String]))] = Array(
+(2,(ArrayBuffer(b),ArrayBuffer(c))),
+(3,(ArrayBuffer(b),ArrayBuffer(c))),
+(1,(ArrayBuffer(b, b),ArrayBuffer(c, c)))
+
+Ans:
+
+b.groupByKey().join(c.groupByKey()).collect()
+	
 
 Question 82
 Problem Scenario 40 : You have been given sample data as below in a file called
