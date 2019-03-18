@@ -1727,9 +1727,26 @@ Array[(String, (Option[lnt], Option[lnt]))] = Array((book,(Some(4},None)),
 (cat,(Some(12),Some(2))), (cat,(Some(12),Some(12)))
 
 
+
 Ans:
 
 pairRDD1.fullOuterJoin(pairRDD2).collect()
+
+
+
+Question 51
+Problem Scenario 72 : You have been given a table named "employee2" with following
+detail.
+first_name string
+last_name string
+Write a spark script in python which read this table and print all the rows and individual
+column values.
+
+
+Ans:
+
+for i in employee2.rdd.map(tuple).collect(): print(i)
+
 
 Question 53
 Problem Scenario 69 : Write down a Spark Application using Python,
@@ -2162,6 +2179,28 @@ val header = userRdd.first()
 val userRdd_out = userRdd.filter(x => x(0) != header(0))
 userRdd_out.map(x => header.zip(x).toMap).filter(x => x("id") != "myself").collect
 
+
+Question 65
+Problem Scenario 91 : You have been given data in json format as below.
+{"first_name":"Ankit", "last_name":"Jain"}
+{"first_name":"Amir", "last_name":"Khan"}
+{"first_name":"Rajesh", "last_name":"Khanna"}
+{"first_name":"Priynka", "last_name":"Chopra"}
+{"first_name":"Kareena", "last_name":"Kapoor"}
+{"first_name":"Lokesh", "last_name":"Yadav"}
+Do the following activity
+1. create employee.json tile locally.
+2. Load this tile on hdfs
+3. Register this data as a temp table in Spark using Python.
+4. Write select query and print this data.
+5. Now save back this selected data in json format.
+
+Ans:
+
+nameDF = sqlContext.read.load("/user/cloudera/CDH_CCA/name.json", format = 'json')
+nameDF.registerTempTable("Emp_Name")
+
+sqlContext.sql('select * from Emp_Name').write.format('json').save('/user/cloudera/CDH_CCA/name_json')
 
 
 Question 66
